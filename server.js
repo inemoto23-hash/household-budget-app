@@ -166,15 +166,25 @@ app.get('/api/transactions/:id', async (req, res) => {
             return res.status(404).json({ error: '取引が見つかりません' });
         }
 
-        // 商品詳細を追加
-        const items = await db.all(
-            `SELECT ti.*, ec.name as expense_category_name 
-             FROM transaction_items ti
-             LEFT JOIN expense_categories ec ON ti.expense_category_id = ec.id
-             WHERE ti.transaction_id = ?`,
-            [id]
-        );
-        transaction.items = items;
+        // 商品詳細を追加（テーブルが存在する場合のみ）
+        try {
+            const tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_items'");
+            if (tableExists) {
+                const items = await db.all(
+                    `SELECT ti.*, ec.name as expense_category_name 
+                     FROM transaction_items ti
+                     LEFT JOIN expense_categories ec ON ti.expense_category_id = ec.id
+                     WHERE ti.transaction_id = ?`,
+                    [id]
+                );
+                transaction.items = items;
+            } else {
+                transaction.items = [];
+            }
+        } catch (itemError) {
+            console.warn('個別取引の商品詳細取得エラー:', itemError);
+            transaction.items = [];
+        }
 
         res.json(transaction);
     } catch (error) {
@@ -574,8 +584,15 @@ app.put('/api/transactions/:id', async (req, res) => {
             );
         }
 
-        // 既存の商品詳細を削除
-        await db.run('DELETE FROM transaction_items WHERE transaction_id = ?', [id]);
+        // 既存の商品詳細を削除（テーブルが存在する場合のみ）
+        try {
+            const tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_items'");
+            if (tableExists) {
+                await db.run('DELETE FROM transaction_items WHERE transaction_id = ?', [id]);
+            }
+        } catch (itemError) {
+            console.warn('既存商品詳細削除エラー:', itemError);
+        }
 
         // 取引を更新
         await db.run(
@@ -684,8 +701,15 @@ app.delete('/api/transactions/:id', async (req, res) => {
             );
         }
 
-        // 商品詳細を削除
-        await db.run('DELETE FROM transaction_items WHERE transaction_id = ?', [id]);
+        // 商品詳細を削除（テーブルが存在する場合のみ）
+        try {
+            const tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_items'");
+            if (tableExists) {
+                await db.run('DELETE FROM transaction_items WHERE transaction_id = ?', [id]);
+            }
+        } catch (itemError) {
+            console.warn('商品詳細削除エラー:', itemError);
+        }
 
         // 取引を削除
         await db.run('DELETE FROM transactions WHERE id = ?', [id]);
