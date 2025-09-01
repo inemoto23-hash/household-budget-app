@@ -6,12 +6,89 @@ async function seedDatabase(db) {
     console.log('完全なデータベース（入力済みデータ含む）を投入中...');
     
     try {
-        // データが既に存在するかチェック
-        const existingTransactions = await db.get('SELECT COUNT(*) as count FROM transactions');
-        if (existingTransactions.count > 0) {
-            console.log('データベースには既にデータが存在します。スキップします。');
-            return;
+        // 強制的にデータベースを再作成（デプロイ環境用）
+        console.log('既存のデータベースを削除して最新データで再作成します...');
+        
+        // 全テーブルを削除
+        await db.run('DROP TABLE IF EXISTS transactions');
+        await db.run('DROP TABLE IF EXISTS monthly_budgets');
+        await db.run('DROP TABLE IF EXISTS monthly_credit_summary');
+        await db.run('DROP TABLE IF EXISTS expense_categories');
+        await db.run('DROP TABLE IF EXISTS wallet_categories');
+        await db.run('DROP TABLE IF EXISTS credit_categories');
+        
+        // テーブルを再作成
+        const createTablesSQL = `
+            CREATE TABLE expense_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE wallet_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                balance DECIMAL(10,2) DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE credit_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date DATE NOT NULL,
+                amount DECIMAL(10,2) NOT NULL,
+                type TEXT CHECK(type IN ('income', 'expense', 'transfer', 'charge', 'budget_transfer')) NOT NULL,
+                expense_category_id INTEGER,
+                wallet_category_id INTEGER,
+                credit_category_id INTEGER,
+                description TEXT,
+                memo TEXT DEFAULT '',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                payment_location TEXT DEFAULT '',
+                notes TEXT DEFAULT '',
+                FOREIGN KEY (expense_category_id) REFERENCES expense_categories(id),
+                FOREIGN KEY (wallet_category_id) REFERENCES wallet_categories(id),
+                FOREIGN KEY (credit_category_id) REFERENCES credit_categories(id)
+            );
+
+            CREATE TABLE monthly_budgets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                year INTEGER NOT NULL,
+                month INTEGER NOT NULL,
+                expense_category_id INTEGER NOT NULL,
+                budget_amount DECIMAL(10,2) NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (expense_category_id) REFERENCES expense_categories(id),
+                UNIQUE(year, month, expense_category_id)
+            );
+
+            CREATE TABLE monthly_credit_summary (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                year INTEGER NOT NULL,
+                month INTEGER NOT NULL,
+                credit_category_id INTEGER NOT NULL,
+                total_amount DECIMAL(10,2) DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (credit_category_id) REFERENCES credit_categories(id),
+                UNIQUE(year, month, credit_category_id)
+            );
+        `;
+        
+        const statements = createTablesSQL.split(';').filter(s => s.trim());
+        for (const statement of statements) {
+            if (statement.trim()) {
+                await db.run(statement.trim());
+            }
         }
+        
+        console.log('テーブル再作成完了');
         
         // 実際のSQLファイルを使用してデータを投入
         const fs = require('fs');
