@@ -187,6 +187,8 @@ app.get('/api/transactions/:id', async (req, res) => {
 app.get('/api/transactions', async (req, res) => {
     try {
         const { date, month } = req.query;
+        console.log(`取引取得リクエスト: date=${date}, month=${month}`);
+        
         let query = `
             SELECT t.*, ec.name as expense_category_name, 
                    wc.name as wallet_category_name, cc.name as credit_category_name
@@ -206,6 +208,7 @@ app.get('/api/transactions', async (req, res) => {
         }
 
         query += ' ORDER BY t.date DESC, t.created_at DESC';
+        console.log(`実行するクエリ: ${query}`, params);
 
         const transactions = await db.all(query, params);
         
@@ -221,8 +224,10 @@ app.get('/api/transactions', async (req, res) => {
             transaction.items = items;
         }
         
+        console.log(`取得された取引数: ${transactions.length}`);
         res.json(transactions);
     } catch (error) {
+        console.error('取引取得エラー:', error);
         res.status(500).json({ error: '取引記録の取得に失敗しました' });
     }
 });
