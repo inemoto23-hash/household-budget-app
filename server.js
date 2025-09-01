@@ -37,6 +37,90 @@ async function initializeDatabase() {
 // サーバー起動時にデータベースを初期化
 initializeDatabase();
 
+// バックアップ関連API
+
+// データベース全体をSQL形式でエクスポート
+app.get('/api/backup/sql', async (req, res) => {
+    try {
+        console.log('SQLバックアップ開始');
+        
+        // 現在の日時をファイル名に使用
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const filename = `household-budget-backup-${timestamp}.sql`;
+        
+        let sqlContent = '-- データベースバックアップ SQL\\n';
+        sqlContent += `-- 作成日時: ${now.toLocaleString('ja-JP')}\\n\\n`;
+        
+        // テーブル一覧を取得
+        const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+        
+        for (const table of tables) {
+            const tableName = table.name;
+            sqlContent += `-- ${tableName} データ\\n`;
+            
+            const rows = await db.all(`SELECT * FROM ${tableName}`);
+            
+            for (const row of rows) {
+                const columns = Object.keys(row).join(', ');
+                const values = Object.values(row).map(val => {
+                    if (val === null) return 'NULL';
+                    if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
+                    return val;
+                }).join(', ');
+                
+                sqlContent += `INSERT INTO ${tableName} (${columns}) VALUES (${values});\\n`;
+            }
+            sqlContent += '\\n';
+        }
+        
+        // ファイルとしてダウンロード
+        res.setHeader('Content-Type', 'application/sql');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(sqlContent);
+        
+        console.log(`SQLバックアップ完了: ${filename}`);
+    } catch (error) {
+        console.error('SQLバックアップエラー:', error);
+        res.status(500).json({ error: 'バックアップの作成に失敗しました' });
+    }
+});
+
+// データベース全体をJSON形式でエクスポート
+app.get('/api/backup/json', async (req, res) => {
+    try {
+        console.log('JSONバックアップ開始');
+        
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const filename = `household-budget-backup-${timestamp}.json`;
+        
+        const backup = {
+            timestamp: now.toISOString(),
+            version: '1.0',
+            tables: {}
+        };
+        
+        // 全テーブルのデータを取得
+        const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+        
+        for (const table of tables) {
+            const tableName = table.name;
+            backup.tables[tableName] = await db.all(`SELECT * FROM ${tableName}`);
+        }
+        
+        // ファイルとしてダウンロード
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.json(backup);
+        
+        console.log(`JSONバックアップ完了: ${filename} (${Object.keys(backup.tables).length}テーブル)`);
+    } catch (error) {
+        console.error('JSONバックアップエラー:', error);
+        res.status(500).json({ error: 'バックアップの作成に失敗しました' });
+    }
+});
+
 // ミドルウェア
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));

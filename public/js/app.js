@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     showCalendar();
     setDefaultDate();
     populateYearMonthSelectors();
+    setupBackupListeners();
 });
 
 // カテゴリデータの読み込み
@@ -2350,5 +2351,105 @@ async function updateWalletBalance(walletId) {
     } catch (error) {
         console.error('残高更新エラー:', error);
         alert('残高の更新に失敗しました');
+    }
+}
+
+// バックアップ機能
+function setupBackupListeners() {
+    const sqlBackupBtn = document.getElementById('backup-sql-btn');
+    const jsonBackupBtn = document.getElementById('backup-json-btn');
+    
+    if (sqlBackupBtn) {
+        sqlBackupBtn.addEventListener('click', downloadSQLBackup);
+    }
+    
+    if (jsonBackupBtn) {
+        jsonBackupBtn.addEventListener('click', downloadJSONBackup);
+    }
+}
+
+// SQLバックアップのダウンロード
+async function downloadSQLBackup() {
+    try {
+        const button = document.getElementById('backup-sql-btn');
+        button.disabled = true;
+        button.textContent = 'ダウンロード中...';
+        
+        const response = await fetch('/api/backup/sql');
+        
+        if (!response.ok) {
+            throw new Error('バックアップの作成に失敗しました');
+        }
+        
+        // ファイルをダウンロード
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // ファイル名をレスポンスヘッダーから取得
+        const contentDisposition = response.headers.get('content-disposition');
+        const filename = contentDisposition 
+            ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+            : `household-budget-backup-${new Date().toISOString().slice(0, 10)}.sql`;
+            
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        console.log('SQLバックアップ完了:', filename);
+        
+    } catch (error) {
+        console.error('SQLバックアップエラー:', error);
+        alert('SQLバックアップの作成に失敗しました');
+    } finally {
+        const button = document.getElementById('backup-sql-btn');
+        button.disabled = false;
+        button.textContent = 'SQLファイルでダウンロード';
+    }
+}
+
+// JSONバックアップのダウンロード
+async function downloadJSONBackup() {
+    try {
+        const button = document.getElementById('backup-json-btn');
+        button.disabled = true;
+        button.textContent = 'ダウンロード中...';
+        
+        const response = await fetch('/api/backup/json');
+        
+        if (!response.ok) {
+            throw new Error('バックアップの作成に失敗しました');
+        }
+        
+        // ファイルをダウンロード
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // ファイル名をレスポンスヘッダーから取得
+        const contentDisposition = response.headers.get('content-disposition');
+        const filename = contentDisposition 
+            ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+            : `household-budget-backup-${new Date().toISOString().slice(0, 10)}.json`;
+            
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        console.log('JSONバックアップ完了:', filename);
+        
+    } catch (error) {
+        console.error('JSONバックアップエラー:', error);
+        alert('JSONバックアップの作成に失敗しました');
+    } finally {
+        const button = document.getElementById('backup-json-btn');
+        button.disabled = false;
+        button.textContent = 'JSONファイルでダウンロード';
     }
 }
