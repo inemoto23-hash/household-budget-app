@@ -151,6 +151,7 @@ app.get('/api/payment-locations', async (req, res) => {
 app.get('/api/transactions/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        console.log(`個別取引取得: ID=${id}`);
         const transaction = await db.get(
             `SELECT t.*, ec.name as expense_category_name, 
                    wc.name as wallet_category_name, cc.name as credit_category_name
@@ -163,8 +164,11 @@ app.get('/api/transactions/:id', async (req, res) => {
         );
 
         if (!transaction) {
+            console.log(`取引ID ${id} が見つかりません`);
             return res.status(404).json({ error: '取引が見つかりません' });
         }
+        
+        console.log(`取引データ取得成功: ${transaction.description}`);
 
         // 商品詳細を追加（テーブルが存在する場合のみ）
         try {
