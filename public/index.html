@@ -275,6 +275,18 @@
                             SQLファイル: データベース復元用、JSONファイル: 人間が読みやすい形式</small>
                         </p>
                     </div>
+                    
+                    <!-- データベース状態セクション -->
+                    <div class="database-status-section">
+                        <h3>データベース状態</h3>
+                        <div id="database-status" class="status-info">
+                            <button id="check-database-status" class="btn-secondary">状態確認</button>
+                            <div id="database-info" class="database-info hidden"></div>
+                        </div>
+                        <p class="status-info-text">
+                            <small>PostgreSQL接続でデータが永続化されます。SQLiteの場合はサーバー再起動でデータが消失します。</small>
+                        </p>
+                    </div>
                 </div>
             </div>
         </main>

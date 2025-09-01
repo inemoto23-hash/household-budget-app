@@ -2358,6 +2358,7 @@ async function updateWalletBalance(walletId) {
 function setupBackupListeners() {
     const sqlBackupBtn = document.getElementById('backup-sql-btn');
     const jsonBackupBtn = document.getElementById('backup-json-btn');
+    const checkStatusBtn = document.getElementById('check-database-status');
     
     if (sqlBackupBtn) {
         sqlBackupBtn.addEventListener('click', downloadSQLBackup);
@@ -2365,6 +2366,10 @@ function setupBackupListeners() {
     
     if (jsonBackupBtn) {
         jsonBackupBtn.addEventListener('click', downloadJSONBackup);
+    }
+    
+    if (checkStatusBtn) {
+        checkStatusBtn.addEventListener('click', checkDatabaseStatus);
     }
 }
 
@@ -2451,5 +2456,62 @@ async function downloadJSONBackup() {
         const button = document.getElementById('backup-json-btn');
         button.disabled = false;
         button.textContent = 'JSONファイルでダウンロード';
+    }
+}
+
+// データベース状態確認
+async function checkDatabaseStatus() {
+    try {
+        const button = document.getElementById('check-database-status');
+        const infoDiv = document.getElementById('database-info');
+        
+        button.disabled = true;
+        button.textContent = '確認中...';
+        
+        const response = await fetch('/api/database/status');
+        const status = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(status.error || 'ステータス取得に失敗しました');
+        }
+        
+        // 状態表示を更新
+        infoDiv.innerHTML = `
+            <div class="status-item">
+                <strong>データベース種類:</strong> 
+                <span class="status-value ${status.type === 'postgresql' ? 'postgresql' : 'sqlite'}">${status.type === 'postgresql' ? 'PostgreSQL (永続化)' : 'SQLite (一時的)'}</span>
+            </div>
+            <div class="status-item">
+                <strong>接続状態:</strong> 
+                <span class="status-value ${status.connected ? 'connected' : 'disconnected'}">${status.connected ? '接続済み' : '未接続'}</span>
+            </div>
+            <div class="status-item">
+                <strong>環境:</strong> 
+                <span class="status-value">${status.environment}</span>
+            </div>
+            <div class="status-item">
+                <strong>DATABASE_URL設定:</strong> 
+                <span class="status-value ${status.hasDatabaseUrl ? 'configured' : 'not-configured'}">${status.hasDatabaseUrl ? '設定済み' : '未設定'}</span>
+            </div>
+            <div class="status-item">
+                <strong>確認時刻:</strong> 
+                <span class="status-value">${new Date(status.timestamp).toLocaleString('ja-JP')}</span>
+            </div>
+            ${status.type === 'sqlite' ? '<div class="warning"><small>⚠️ SQLiteは一時的です。PostgreSQL設定を推奨します。</small></div>' : ''}
+            ${status.type === 'postgresql' ? '<div class="success"><small>✅ PostgreSQLでデータが永続化されます。</small></div>' : ''}
+        `;
+        
+        infoDiv.classList.remove('hidden');
+        console.log('データベース状態:', status);
+        
+    } catch (error) {
+        console.error('データベース状態確認エラー:', error);
+        const infoDiv = document.getElementById('database-info');
+        infoDiv.innerHTML = `<div class="error">状態確認に失敗しました: ${error.message}</div>`;
+        infoDiv.classList.remove('hidden');
+    } finally {
+        const button = document.getElementById('check-database-status');
+        button.disabled = false;
+        button.textContent = '状態確認';
     }
 }

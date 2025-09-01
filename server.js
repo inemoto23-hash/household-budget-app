@@ -47,6 +47,26 @@ initializeDatabase();
 
 // バックアップ関連API
 
+// データベース状態確認API
+app.get('/api/database/status', async (req, res) => {
+    try {
+        res.json({
+            type: db.type || 'unknown',
+            connected: !!db.client,
+            environment: process.env.NODE_ENV || 'development',
+            hasDatabaseUrl: !!process.env.DATABASE_URL,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('データベース状態確認エラー:', error);
+        res.status(500).json({ 
+            error: 'データベース状態の確認に失敗しました',
+            type: 'unknown',
+            connected: false
+        });
+    }
+});
+
 // データベース全体をSQL形式でエクスポート
 app.get('/api/backup/sql', async (req, res) => {
     try {

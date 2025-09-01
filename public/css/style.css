@@ -1306,3 +1306,103 @@ main {
         min-width: auto;
     }
 }
+
+/* データベース状態セクション */
+.database-status-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 1px solid #e9ecef;
+}
+
+.database-status-section h3 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.database-status-section h3::before {
+    content: '🔍';
+    margin-right: 0.5rem;
+}
+
+.database-info {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.status-item:last-child {
+    border-bottom: none;
+}
+
+.status-value.postgresql {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-value.sqlite {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.status-value.connected {
+    color: #28a745;
+}
+
+.status-value.disconnected {
+    color: #dc3545;
+}
+
+.status-value.configured {
+    color: #28a745;
+}
+
+.status-value.not-configured {
+    color: #ffc107;
+}
+
+.warning {
+    padding: 0.75rem;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    margin-top: 1rem;
+    color: #856404;
+}
+
+.success {
+    padding: 0.75rem;
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 6px;
+    margin-top: 1rem;
+    color: #155724;
+}
+
+.error {
+    padding: 0.75rem;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+    margin-top: 1rem;
+    color: #721c24;
+}
+
+.status-info-text {
+    color: #6c757d;
+    font-style: italic;
+    margin: 1rem 0 0 0;
+    line-height: 1.4;
+}
