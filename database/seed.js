@@ -3,27 +3,53 @@ const path = require('path');
 
 // 初期データを投入する関数
 async function seedDatabase(db) {
-    console.log('初期データを投入中...');
+    console.log('完全なデータベース（入力済みデータ含む）を投入中...');
     
     try {
-        // たけ小遣い・ささ小遣いが存在するかチェック（最新データの確認）
-        const modernCategories = await db.get('SELECT COUNT(*) as count FROM expense_categories WHERE name IN ("たけ小遣い", "ささ小遣い")');
-        if (modernCategories.count >= 2) {
-            console.log('最新データ（たけ・ささ小遣い分離済み）が既に存在します。スキップします。');
+        // データが既に存在するかチェック
+        const existingTransactions = await db.get('SELECT COUNT(*) as count FROM transactions');
+        if (existingTransactions.count > 0) {
+            console.log('データベースには既にデータが存在します。スキップします。');
             return;
         }
         
-        // 古いデータがある場合はクリア
-        const existingCategories = await db.get('SELECT COUNT(*) as count FROM expense_categories');
-        if (existingCategories.count > 0) {
-            console.log('古いデータをクリアして最新データに更新中...');
-            await db.run('DELETE FROM monthly_budgets');
-            await db.run('DELETE FROM transactions'); 
-            await db.run('DELETE FROM monthly_credit_summary');
-            await db.run('DELETE FROM expense_categories');
-            await db.run('DELETE FROM wallet_categories');
-            await db.run('DELETE FROM credit_categories');
+        // 実際のSQLファイルを使用してデータを投入
+        const fs = require('fs');
+        const path = require('path');
+        const sqlFilePath = path.join(__dirname, 'migration_data.sql');
+        
+        if (fs.existsSync(sqlFilePath)) {
+            console.log('完全なデータセット（migration_data.sql）を読み込み中...');
+            const sql = fs.readFileSync(sqlFilePath, 'utf8');
+            
+            // SQLファイルを実行
+            const statements = sql.split(';').filter(s => s.trim());
+            for (const statement of statements) {
+                if (statement.trim() && !statement.trim().startsWith('--')) {
+                    await db.run(statement.trim());
+                }
+            }
+            
+            console.log('✅ 完全なデータベース（入力済みデータ含む）の投入が完了しました！');
+            console.log('- 出費カテゴリ: 12件（たけ・ささ小遣い分離済み）');
+            console.log('- 財布カテゴリ: 12件（家現金含む、最新残高）');
+            console.log('- 取引データ: 16件（入力済みデータ）');
+            console.log('- 予算設定: 24件（9月・10月分）');
+            console.log('- クレジット集計: 3件');
+        } else {
+            console.log('migration_data.sqlが見つかりません。基本データのみ投入します。');
+            await seedBasicData(db);
         }
+        
+    } catch (error) {
+        console.error('完全データ投入エラー:', error);
+        console.log('基本データのみ投入を試行します...');
+        await seedBasicData(db);
+    }
+}
+
+// フォールバック用の基本データ投入
+async function seedBasicData(db) {
         
         // 初期データの投入
         const seedData = [
