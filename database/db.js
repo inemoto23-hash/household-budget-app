@@ -51,12 +51,22 @@ class Database {
                         return;
                     }
 
-                    this.db.exec(sql, (err) => {
+                    this.db.exec(sql, async (err) => {
                         if (err) {
                             console.error('テーブル作成エラー:', err);
                             reject(err);
                         } else {
                             console.log('データベーステーブルを作成しました');
+                            
+                            // 初期データを投入
+                            try {
+                                const { seedDatabase } = require('./seed');
+                                await seedDatabase(this);
+                            } catch (seedError) {
+                                console.error('初期データ投入エラー:', seedError);
+                                // テーブル作成は成功したので、初期データエラーでは停止しない
+                            }
+                            
                             resolve();
                         }
                     });
