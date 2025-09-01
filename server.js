@@ -212,16 +212,31 @@ app.get('/api/transactions', async (req, res) => {
 
         const transactions = await db.all(query, params);
         
-        // 各取引に商品詳細を追加
-        for (const transaction of transactions) {
-            const items = await db.all(
-                `SELECT ti.*, ec.name as expense_category_name 
-                 FROM transaction_items ti
-                 LEFT JOIN expense_categories ec ON ti.expense_category_id = ec.id
-                 WHERE ti.transaction_id = ?`,
-                [transaction.id]
-            );
-            transaction.items = items;
+        // 各取引に商品詳細を追加（テーブルが存在する場合のみ）
+        try {
+            const tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_items'");
+            if (tableExists) {
+                for (const transaction of transactions) {
+                    const items = await db.all(
+                        `SELECT ti.*, ec.name as expense_category_name 
+                         FROM transaction_items ti
+                         LEFT JOIN expense_categories ec ON ti.expense_category_id = ec.id 
+                         WHERE ti.transaction_id = ?`,
+                        [transaction.id]
+                    );
+                    transaction.items = items;
+                }
+            } else {
+                console.log('transaction_itemsテーブルが存在しません。商品詳細はスキップします。');
+                for (const transaction of transactions) {
+                    transaction.items = [];
+                }
+            }
+        } catch (itemError) {
+            console.warn('商品詳細取得エラー:', itemError);
+            for (const transaction of transactions) {
+                transaction.items = [];
+            }
         }
         
         console.log(`取得された取引数: ${transactions.length}`);
