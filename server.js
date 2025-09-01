@@ -1252,7 +1252,7 @@ app.get('/test', (req, res) => {
 // サーバー起動
 async function startServer() {
     try {
-        await db.init();
+        // データベースは既にinitializeDatabase()で接続済み
         app.listen(PORT, '0.0.0.0', () => {
             const os = require('os');
             const networkInterfaces = os.networkInterfaces();

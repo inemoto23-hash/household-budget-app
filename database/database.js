@@ -38,8 +38,9 @@ class Database {
         const dbPath = path.join(__dirname, 'household_budget.db');
         
         return new Promise((resolve, reject) => {
-            this.client = new sqlite3.Database(dbPath, (err) => {
+            this.client = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
                 if (err) {
+                    console.error('SQLite接続エラー:', err);
                     reject(err);
                 } else {
                     console.log('✅ SQLiteデータベース接続成功');
@@ -50,28 +51,31 @@ class Database {
     }
 
     async createTables() {
+        const idType = this.type === 'postgresql' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+        const timestampType = this.type === 'postgresql' ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP';
+        
         const tables = [
             `CREATE TABLE IF NOT EXISTS expense_categories (
-                id ${this.type === 'postgresql' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+                id ${idType},
                 name TEXT NOT NULL UNIQUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at ${timestampType}
             )`,
             
             `CREATE TABLE IF NOT EXISTS wallet_categories (
-                id ${this.type === 'postgresql' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+                id ${idType},
                 name TEXT NOT NULL UNIQUE,
                 balance DECIMAL(10,2) DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at ${timestampType}
             )`,
             
             `CREATE TABLE IF NOT EXISTS credit_categories (
-                id ${this.type === 'postgresql' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+                id ${idType},
                 name TEXT NOT NULL UNIQUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at ${timestampType}
             )`,
             
             `CREATE TABLE IF NOT EXISTS transactions (
-                id ${this.type === 'postgresql' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+                id ${idType},
                 date DATE NOT NULL,
                 amount DECIMAL(10,2) NOT NULL,
                 type TEXT CHECK(type IN ('income', 'expense', 'transfer', 'charge', 'budget_transfer')) NOT NULL,
@@ -80,35 +84,30 @@ class Database {
                 credit_category_id INTEGER,
                 description TEXT,
                 memo TEXT DEFAULT '',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at ${timestampType},
+                updated_at ${timestampType},
                 payment_location TEXT DEFAULT '',
-                notes TEXT DEFAULT '',
-                FOREIGN KEY (expense_category_id) REFERENCES expense_categories(id),
-                FOREIGN KEY (wallet_category_id) REFERENCES wallet_categories(id),
-                FOREIGN KEY (credit_category_id) REFERENCES credit_categories(id)
+                notes TEXT DEFAULT ''${this.type === 'sqlite' ? ',\n                FOREIGN KEY (expense_category_id) REFERENCES expense_categories(id),\n                FOREIGN KEY (wallet_category_id) REFERENCES wallet_categories(id),\n                FOREIGN KEY (credit_category_id) REFERENCES credit_categories(id)' : ''}
             )`,
             
             `CREATE TABLE IF NOT EXISTS monthly_budgets (
-                id ${this.type === 'postgresql' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+                id ${idType},
                 year INTEGER NOT NULL,
                 month INTEGER NOT NULL,
                 expense_category_id INTEGER NOT NULL,
                 budget_amount DECIMAL(10,2) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (expense_category_id) REFERENCES expense_categories(id),
+                created_at ${timestampType}${this.type === 'sqlite' ? ',\n                FOREIGN KEY (expense_category_id) REFERENCES expense_categories(id),' : ','}
                 UNIQUE(year, month, expense_category_id)
             )`,
             
             `CREATE TABLE IF NOT EXISTS monthly_credit_summary (
-                id ${this.type === 'postgresql' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+                id ${idType},
                 year INTEGER NOT NULL,
                 month INTEGER NOT NULL,
                 credit_category_id INTEGER NOT NULL,
                 total_amount DECIMAL(10,2) DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (credit_category_id) REFERENCES credit_categories(id),
+                created_at ${timestampType},
+                updated_at ${timestampType}${this.type === 'sqlite' ? ',\n                FOREIGN KEY (credit_category_id) REFERENCES credit_categories(id),' : ','}
                 UNIQUE(year, month, credit_category_id)
             )`
         ];
@@ -116,6 +115,29 @@ class Database {
         for (const table of tables) {
             await this.run(table);
         }
+        
+        // PostgreSQLの場合は外部キー制約を追加
+        if (this.type === 'postgresql') {
+            const foreignKeys = [
+                'ALTER TABLE transactions ADD CONSTRAINT IF NOT EXISTS fk_transactions_expense FOREIGN KEY (expense_category_id) REFERENCES expense_categories(id)',
+                'ALTER TABLE transactions ADD CONSTRAINT IF NOT EXISTS fk_transactions_wallet FOREIGN KEY (wallet_category_id) REFERENCES wallet_categories(id)', 
+                'ALTER TABLE transactions ADD CONSTRAINT IF NOT EXISTS fk_transactions_credit FOREIGN KEY (credit_category_id) REFERENCES credit_categories(id)',
+                'ALTER TABLE monthly_budgets ADD CONSTRAINT IF NOT EXISTS fk_budgets_expense FOREIGN KEY (expense_category_id) REFERENCES expense_categories(id)',
+                'ALTER TABLE monthly_credit_summary ADD CONSTRAINT IF NOT EXISTS fk_credit_summary_credit FOREIGN KEY (credit_category_id) REFERENCES credit_categories(id)'
+            ];
+            
+            for (const fk of foreignKeys) {
+                try {
+                    await this.run(fk);
+                } catch (error) {
+                    // 制約が既に存在する場合のエラーは無視
+                    if (!error.message.includes('already exists')) {
+                        console.warn('外部キー制約追加警告:', error.message);
+                    }
+                }
+            }
+        }
+        
         console.log('✅ テーブル作成完了');
     }
 
