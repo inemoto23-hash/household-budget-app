@@ -821,9 +821,56 @@ async function handleTransactionSubmit(e) {
             if (isEditing) {
                 cancelEdit();
             } else {
+                // 選択値を保持してからリセット
+                const selectedValues = {
+                    expenseCategory: document.getElementById('expense-category').value,
+                    walletCategory: document.getElementById('wallet-category').value,
+                    creditCategory: document.getElementById('credit-category').value,
+                    paymentMethod: document.querySelector('input[name="payment-method"]:checked')?.value,
+                    transferFrom: document.getElementById('transfer-from').value,
+                    transferTo: document.getElementById('transfer-to').value,
+                    chargeFromSource: document.getElementById('charge-from-source').value,
+                    chargeToWallet: document.getElementById('charge-to-wallet').value,
+                    budgetFromCategory: document.getElementById('budget-from-category').value,
+                    budgetToCategory: document.getElementById('budget-to-category').value
+                };
+                
                 // フォームをリセット
                 form.reset();
                 setDefaultDate();
+                
+                // 保持した値を復元
+                if (selectedValues.expenseCategory) {
+                    document.getElementById('expense-category').value = selectedValues.expenseCategory;
+                }
+                if (selectedValues.walletCategory) {
+                    document.getElementById('wallet-category').value = selectedValues.walletCategory;
+                }
+                if (selectedValues.creditCategory) {
+                    document.getElementById('credit-category').value = selectedValues.creditCategory;
+                }
+                if (selectedValues.paymentMethod) {
+                    const paymentRadio = document.querySelector(`input[name="payment-method"][value="${selectedValues.paymentMethod}"]`);
+                    if (paymentRadio) paymentRadio.checked = true;
+                }
+                if (selectedValues.transferFrom) {
+                    document.getElementById('transfer-from').value = selectedValues.transferFrom;
+                }
+                if (selectedValues.transferTo) {
+                    document.getElementById('transfer-to').value = selectedValues.transferTo;
+                }
+                if (selectedValues.chargeFromSource) {
+                    document.getElementById('charge-from-source').value = selectedValues.chargeFromSource;
+                }
+                if (selectedValues.chargeToWallet) {
+                    document.getElementById('charge-to-wallet').value = selectedValues.chargeToWallet;
+                }
+                if (selectedValues.budgetFromCategory) {
+                    document.getElementById('budget-from-category').value = selectedValues.budgetFromCategory;
+                }
+                if (selectedValues.budgetToCategory) {
+                    document.getElementById('budget-to-category').value = selectedValues.budgetToCategory;
+                }
                 
                 // 商品行をクリア
                 document.getElementById('items-container').innerHTML = '';
