@@ -50,7 +50,7 @@ async function seedDatabase(db) {
 
 // フォールバック用の基本データ投入
 async function seedBasicData(db) {
-        
+    try {
         // 初期データの投入
         const seedData = [
             // 出費カテゴリ（たけ小遣い・ささ小遣い分離済み）
