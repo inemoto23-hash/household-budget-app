@@ -6,11 +6,23 @@ async function seedDatabase(db) {
     console.log('初期データを投入中...');
     
     try {
-        // データが既に存在するかチェック
+        // たけ小遣い・ささ小遣いが存在するかチェック（最新データの確認）
+        const modernCategories = await db.get('SELECT COUNT(*) as count FROM expense_categories WHERE name IN ("たけ小遣い", "ささ小遣い")');
+        if (modernCategories.count >= 2) {
+            console.log('最新データ（たけ・ささ小遣い分離済み）が既に存在します。スキップします。');
+            return;
+        }
+        
+        // 古いデータがある場合はクリア
         const existingCategories = await db.get('SELECT COUNT(*) as count FROM expense_categories');
         if (existingCategories.count > 0) {
-            console.log('データベースには既にデータが存在します。スキップします。');
-            return;
+            console.log('古いデータをクリアして最新データに更新中...');
+            await db.run('DELETE FROM monthly_budgets');
+            await db.run('DELETE FROM transactions'); 
+            await db.run('DELETE FROM monthly_credit_summary');
+            await db.run('DELETE FROM expense_categories');
+            await db.run('DELETE FROM wallet_categories');
+            await db.run('DELETE FROM credit_categories');
         }
         
         // 初期データの投入
