@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
-const db = require('./database/db');
+const db = require('./database/database');
 const { seedDatabase } = require('./database/seed');
 
 const app = express();
@@ -12,8 +12,16 @@ const PORT = process.env.PORT || 3000;
 // データベース初期化の確認と実行
 async function initializeDatabase() {
     try {
-        // テーブルが存在するかチェック
-        const tableCheck = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transactions'");
+        // データベースに接続
+        await db.connect();
+        
+        // PostgreSQLの場合は情報スキーマ、SQLiteの場合はsqlite_masterを使用
+        let tableCheck;
+        if (db.type === 'postgresql') {
+            tableCheck = await db.get("SELECT table_name FROM information_schema.tables WHERE table_name = 'transactions'");
+        } else {
+            tableCheck = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transactions'");
+        }
         
         if (!tableCheck) {
             console.log('データベースが未初期化です。初期化を実行します...');
@@ -53,7 +61,13 @@ app.get('/api/backup/sql', async (req, res) => {
         sqlContent += `-- 作成日時: ${now.toLocaleString('ja-JP')}\\n\\n`;
         
         // テーブル一覧を取得
-        const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+        let tables;
+        if (db.type === 'postgresql') {
+            const result = await db.all("SELECT table_name as name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name");
+            tables = result;
+        } else {
+            tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+        }
         
         for (const table of tables) {
             const tableName = table.name;
@@ -102,7 +116,13 @@ app.get('/api/backup/json', async (req, res) => {
         };
         
         // 全テーブルのデータを取得
-        const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+        let tables;
+        if (db.type === 'postgresql') {
+            const result = await db.all("SELECT table_name as name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name");
+            tables = result;
+        } else {
+            tables = await db.all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+        }
         
         for (const table of tables) {
             const tableName = table.name;
@@ -256,7 +276,12 @@ app.get('/api/transactions/:id', async (req, res) => {
 
         // 商品詳細を追加（テーブルが存在する場合のみ）
         try {
-            const tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_items'");
+            let tableExists;
+            if (db.type === 'postgresql') {
+                tableExists = await db.get("SELECT table_name FROM information_schema.tables WHERE table_name = 'transaction_items'");
+            } else {
+                tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_items'");
+            }
             if (tableExists) {
                 const items = await db.all(
                     `SELECT ti.*, ec.name as expense_category_name 
@@ -312,7 +337,12 @@ app.get('/api/transactions', async (req, res) => {
         
         // 各取引に商品詳細を追加（テーブルが存在する場合のみ）
         try {
-            const tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_items'");
+            let tableExists;
+            if (db.type === 'postgresql') {
+                tableExists = await db.get("SELECT table_name FROM information_schema.tables WHERE table_name = 'transaction_items'");
+            } else {
+                tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_items'");
+            }
             if (tableExists) {
                 for (const transaction of transactions) {
                     const items = await db.all(
@@ -674,7 +704,12 @@ app.put('/api/transactions/:id', async (req, res) => {
 
         // 既存の商品詳細を削除（テーブルが存在する場合のみ）
         try {
-            const tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_items'");
+            let tableExists;
+            if (db.type === 'postgresql') {
+                tableExists = await db.get("SELECT table_name FROM information_schema.tables WHERE table_name = 'transaction_items'");
+            } else {
+                tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_items'");
+            }
             if (tableExists) {
                 await db.run('DELETE FROM transaction_items WHERE transaction_id = ?', [id]);
             }
