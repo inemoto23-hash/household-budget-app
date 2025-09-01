@@ -432,7 +432,7 @@ async function showDayDetail(date) {
         `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
     
     try {
-        const response = await fetch(`/api/transactions?date=${dateStr}`);
+        const response = await fetch(`/api/transactions/date/${dateStr}`);
         const transactions = await response.json();
         
         const transactionsList = document.getElementById('day-transactions');
