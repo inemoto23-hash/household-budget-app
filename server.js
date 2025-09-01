@@ -4,9 +4,38 @@ const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 const db = require('./database/db');
+const { seedDatabase } = require('./database/seed');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// データベース初期化の確認と実行
+async function initializeDatabase() {
+    try {
+        // テーブルが存在するかチェック
+        const tableCheck = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='transactions'");
+        
+        if (!tableCheck) {
+            console.log('データベースが未初期化です。初期化を実行します...');
+            await seedDatabase(db);
+        } else {
+            // データが存在するかチェック
+            const dataCheck = await db.get('SELECT COUNT(*) as count FROM transactions');
+            if (dataCheck.count === 0) {
+                console.log('データベースにデータが存在しません。シードデータを投入します...');
+                await seedDatabase(db);
+            } else {
+                console.log(`データベース初期化済み: ${dataCheck.count}件の取引データが存在します`);
+            }
+        }
+    } catch (error) {
+        console.error('データベース初期化エラー:', error);
+        // 初期化に失敗してもサーバーは開始する
+    }
+}
+
+// サーバー起動時にデータベースを初期化
+initializeDatabase();
 
 // ミドルウェア
 app.use(cors());
