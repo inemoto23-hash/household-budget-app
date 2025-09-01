@@ -381,16 +381,29 @@ function createDayElement(date, currentMonth) {
 // 月の取引データを読み込み
 async function loadMonthTransactions(year, month) {
     try {
-        const monthStr = `${year}-${month.toString().padStart(2, '0')}`;
-        const response = await fetch(`/api/transactions?month=${monthStr}`);
-        const transactions = await response.json();
-        
-        // 日付別の取引数を集計
+        // 各日付について個別に取引件数をチェック
         const transactionCounts = {};
-        transactions.forEach(t => {
-            const date = t.date;
-            transactionCounts[date] = (transactionCounts[date] || 0) + 1;
-        });
+        
+        // その月の全日付をチェック
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const promises = [];
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            promises.push(
+                fetch(`/api/transactions/date/${dateStr}`)
+                    .then(response => response.json())
+                    .then(transactions => {
+                        transactionCounts[dateStr] = transactions.length;
+                    })
+                    .catch(error => {
+                        console.warn(`日付 ${dateStr} の取引取得エラー:`, error);
+                        transactionCounts[dateStr] = 0;
+                    })
+            );
+        }
+        
+        await Promise.all(promises);
         
         // カレンダーに取引数を表示
         document.querySelectorAll('.transaction-count').forEach(element => {
@@ -398,6 +411,8 @@ async function loadMonthTransactions(year, month) {
             const count = transactionCounts[date] || 0;
             element.textContent = count > 0 ? `${count}件` : '';
         });
+        
+        console.log('月間取引件数の読み込み完了:', transactionCounts);
     } catch (error) {
         console.error('取引データの読み込みに失敗しました:', error);
     }
