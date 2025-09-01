@@ -677,6 +677,34 @@ app.delete('/api/transactions/:id', async (req, res) => {
     }
 });
 
+// 日付別取引取得API
+app.get('/api/transactions/date/:date', async (req, res) => {
+    try {
+        const { date } = req.params;
+        console.log(`日付別取引取得: ${date}`);
+        
+        const transactions = await db.all(`
+            SELECT 
+                t.*,
+                ec.name as expense_category_name,
+                wc.name as wallet_category_name,
+                cc.name as credit_category_name
+            FROM transactions t
+            LEFT JOIN expense_categories ec ON t.expense_category_id = ec.id
+            LEFT JOIN wallet_categories wc ON t.wallet_category_id = wc.id
+            LEFT JOIN credit_categories cc ON t.credit_category_id = cc.id
+            WHERE date(t.date) = date(?)
+            ORDER BY t.created_at DESC
+        `, [date]);
+        
+        console.log(`取得された取引数: ${transactions.length}`);
+        res.json(transactions);
+    } catch (error) {
+        console.error('日付別取引取得エラー:', error);
+        res.status(500).json({ error: '取引の取得に失敗しました' });
+    }
+});
+
 // 予算管理API
 app.get('/api/budgets/:year/:month', async (req, res) => {
     try {
